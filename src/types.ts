@@ -60,20 +60,25 @@ export interface AstValidationResult {
   passedRules: string[];
 }
 
-export interface CompilationJob {
-  jobId: string;
-  status: 'queued' | 'compiling' | 'success' | 'failed';
-  queuedAt: string;
-  completedAt?: string;
-  durationMs?: number;
-  vmInstance: string;
-  metaeditorVersion: string;
-  mql5ErrorsCount: number;
-  mql5WarningsCount: number;
-  logs: string[];
-  ex5DownloadUrl?: string;
-  mq5DownloadUrl?: string;
-  expiresInSeconds?: number;
+/**
+ * Result of validating generated MQL5 before download. Reports only what the
+ * server actually did — parse and check the source. Compiling to .ex5 requires
+ * MetaEditor on Windows, which happens in the user's own MetaTrader install.
+ */
+export interface StrategyCheck {
+  checkedAt: string;
+  durationMs: number;
+  passed: boolean;
+  errorCount: number;
+  warningCount: number;
+  lineCount: number;
+  byteSize: number;
+  checks: string[];
+  problems: {
+    severity: 'error' | 'warning';
+    line?: number;
+    message: string;
+  }[];
 }
 
 export interface VideoCard {
@@ -143,5 +148,8 @@ export interface PaymentTransaction {
   amount: number;
   currency: 'KES' | 'USD';
   phoneNumber?: string;
+  email?: string;
   createdAt: string;
+  confirmationCode?: string;
+  paymentMethod?: string;
 }

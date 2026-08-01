@@ -8,17 +8,39 @@ interface LegoBuilderProps {
   setBlueprint: (bp: StrategyBlueprint) => void;
   onSendToBacktest: () => void;
   onSendToCompile: () => void;
+  /** 'describe' is step 1 (the prompt); 'tune' is step 2 (the rules canvas). */
+  view: 'describe' | 'tune';
+  onGenerated: () => void;
 }
+
+/** One-click starters, so a first-time user never faces an empty box. */
+const EXAMPLE_PROMPTS = [
+  {
+    label: 'London session, gap entry',
+    text: 'Only trade during the London session on EURUSD M15. Enter when price returns to a fair value gap inside an order block. Risk 1% per trade with a 15 pip stop and a 45 pip target, using a trailing stop.',
+  },
+  {
+    label: 'Trend following on gold',
+    text: 'Buy XAUUSD on the 1 hour chart when the 9 EMA crosses above the 21 EMA, but only if the ATR shows the market is actually moving. Stop loss 30 pips, take profit 90 pips.',
+  },
+  {
+    label: 'Liquidity sweep reversal',
+    text: 'On GBPUSD M15, wait for price to sweep the previous day high or low and reject immediately with an engulfing candle. Enter the reversal with a 20 pip stop and a 60 pip target.',
+  },
+];
 
 export const LegoBuilder = ({
   blueprint,
   setBlueprint,
   onSendToBacktest,
   onSendToCompile,
+  view,
+  onGenerated,
 }: LegoBuilderProps) => {
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [promptInput, setPromptInput] = useState<string>('');
   const [isGeneratingAi, setIsGeneratingAi] = useState<boolean>(false);
+  const [generateError, setGenerateError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'canvas' | 'json'>('canvas');
 
   // Filter available bricks by category
@@ -67,16 +89,18 @@ export const LegoBuilder = ({
   };
 
   // Generate blueprint via Gemini AI server route
-  const handleAiGenerate = async () => {
-    if (!promptInput.trim()) return;
+  const handleAiGenerate = async (override?: string) => {
+    const prompt = (override ?? promptInput).trim();
+    if (!prompt) return;
     setIsGeneratingAi(true);
+    setGenerateError(null);
 
     try {
       const res = await fetch('/api/generate-blueprint', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          prompt: promptInput,
+          prompt,
           currentSymbol: blueprint.symbol,
           currentTimeframe: blueprint.timeframe,
         }),
@@ -86,55 +110,105 @@ export const LegoBuilder = ({
       if (data.blueprint) {
         setBlueprint(data.blueprint);
         setPromptInput('');
+        onGenerated();
+      } else {
+        setGenerateError(data.error || 'Could not build that strategy. Try describing it differently.');
       }
     } catch (err) {
       console.error('Failed to generate blueprint via Gemini AI:', err);
+      setGenerateError('Could not reach the server. Check your connection and try again.');
     } finally {
       setIsGeneratingAi(false);
     }
   };
 
-  return (
-    <div className="space-y-6 py-4">
-      {/* AI Strategy Prompt Bar */}
-      <div className="bg-gradient-to-r from-slate-900 via-slate-900 to-indigo-950 border border-slate-800 rounded-2xl p-5 shadow-xl">
-        <div className="flex items-center space-x-2 text-cyan-400 font-bold text-sm mb-2 font-mono">
-          <Sparkles className="w-4 h-4 text-cyan-400 animate-spin" />
-          <span>AI Strategy Generator — Server-Side Gemini API</span>
+  if (view === 'describe') {
+    return (
+      <div className="py-4 sm:py-10 max-w-3xl mx-auto space-y-8">
+        {/* What this thing actually does */}
+        <div className="space-y-3 text-center">
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight text-balance">
+            Describe a trading strategy. Get back a robot for MetaTrader 5.
+          </h1>
+          <p className="text-sm text-slate-400 max-w-xl mx-auto leading-relaxed">
+            Write your rules the way you'd explain them to another trader. We turn them into an
+            Expert Advisor file you install in MT5 — no coding. You'll need the MetaTrader 5
+            terminal to run it.
+          </p>
         </div>
-        <p className="text-xs text-slate-300 mb-3">
-          Describe your MT5 trading strategy in natural language (e.g., <em className="text-cyan-200">"Build a London Killzone FVG strategy for EURUSD M15 with trailing stop"</em>).
-        </p>
 
-        <div className="flex flex-col sm:flex-row gap-2">
-          <input
-            type="text"
+        {/* Prompt */}
+        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl space-y-3">
+          <label htmlFor="strategy-prompt" className="text-xs font-bold text-slate-200 block">
+            Your strategy
+          </label>
+
+          <textarea
+            id="strategy-prompt"
+            rows={4}
             value={promptInput}
             onChange={(e) => setPromptInput(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && handleAiGenerate()}
-            placeholder="Type strategy prompt (e.g. Silver Bullet 10am sweep, 1:3 RR with trailing stop)..."
-            className="flex-1 bg-slate-950 border border-slate-700 text-white px-4 py-2.5 rounded-xl text-xs focus:outline-none focus:border-cyan-500 font-mono placeholder:text-slate-500"
+            placeholder="Example: Only trade EURUSD during the London session on the 15 minute chart. Buy when price pulls back into a gap left by a strong move up. Risk 1% per trade, 15 pip stop loss, 45 pip target, and trail the stop once I'm 20 pips in profit."
+            className="w-full bg-slate-950 border border-slate-700 text-white px-4 py-3 rounded-xl text-sm focus:outline-none focus:border-cyan-500 placeholder:text-slate-600 leading-relaxed resize-y"
           />
+
+          {generateError && (
+            <p className="text-xs text-red-300 bg-red-950/50 border border-red-900 rounded-lg px-3 py-2">
+              {generateError}
+            </p>
+          )}
+
           <button
-            onClick={handleAiGenerate}
+            onClick={() => handleAiGenerate()}
             disabled={isGeneratingAi || !promptInput.trim()}
-            className="bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 disabled:opacity-50 text-white font-bold px-5 py-2.5 rounded-xl text-xs flex items-center justify-center space-x-2 shadow-lg shadow-cyan-600/20 transition-all"
+            className="w-full bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 disabled:opacity-40 disabled:cursor-not-allowed text-white font-bold px-5 py-3 rounded-xl text-sm flex items-center justify-center gap-2 shadow-lg shadow-cyan-600/20 transition-all"
           >
             {isGeneratingAi ? (
               <>
                 <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" />
-                <span>AI Generating...</span>
+                <span>Building your strategy…</span>
               </>
             ) : (
               <>
                 <Zap className="w-4 h-4" />
-                <span>Generate Blueprint</span>
+                <span>Build my strategy</span>
               </>
             )}
           </button>
         </div>
-      </div>
 
+        {/* Starters */}
+        <div className="space-y-3">
+          <p className="text-xs text-slate-400 text-center">Or start from one of these:</p>
+          <div className="grid gap-2 sm:grid-cols-3">
+            {EXAMPLE_PROMPTS.map((example) => (
+              <button
+                key={example.label}
+                onClick={() => handleAiGenerate(example.text)}
+                disabled={isGeneratingAi}
+                className="text-left bg-slate-900 border border-slate-800 hover:border-cyan-500/50 disabled:opacity-40 rounded-xl p-3.5 transition-colors group"
+              >
+                <span className="flex items-center gap-1.5 text-xs font-bold text-white group-hover:text-cyan-300 transition-colors">
+                  <Sparkles className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
+                  {example.label}
+                </span>
+                <span className="text-[11px] text-slate-500 line-clamp-2 mt-1 block leading-relaxed">
+                  {example.text}
+                </span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <p className="text-[11px] text-slate-600 text-center">
+          Building and testing are free. You only pay when you download the file.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6 py-4">
       {/* Main Builder Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* Left Column: Brick Library (4 cols) */}
@@ -142,10 +216,10 @@ export const LegoBuilder = ({
           <div className="flex items-center justify-between">
             <h2 className="text-sm font-bold text-white flex items-center space-x-2">
               <Layers className="w-4 h-4 text-cyan-400" />
-              <span>10 Core Lego Bricks</span>
+              <span>Add a rule</span>
             </h2>
             <span className="text-[10px] font-mono text-slate-400 bg-slate-800 px-2 py-0.5 rounded-full">
-              Phase 2 Spec
+              10 available
             </span>
           </div>
 
@@ -222,7 +296,7 @@ export const LegoBuilder = ({
                     activeTab === 'canvas' ? 'bg-cyan-600 text-white font-bold' : 'text-slate-400 hover:text-white'
                   }`}
                 >
-                  Visual Canvas
+                  Rules
                 </button>
                 <button
                   onClick={() => setActiveTab('json')}
@@ -230,7 +304,7 @@ export const LegoBuilder = ({
                     activeTab === 'json' ? 'bg-cyan-600 text-white font-bold' : 'text-slate-400 hover:text-white'
                   }`}
                 >
-                  Blueprint JSON
+                  Raw data
                 </button>
               </div>
             </div>
@@ -374,23 +448,22 @@ export const LegoBuilder = ({
                 </div>
               )}
 
-              {/* Action Buttons: Run Backtest vs Compile MQL5 */}
+              {/* Where to go next */}
               <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-4 border-t border-slate-800">
                 <button
-                  onClick={onSendToBacktest}
-                  className="w-full sm:w-auto bg-slate-800 hover:bg-slate-700 text-amber-300 border border-amber-500/30 px-5 py-2.5 rounded-xl text-xs font-bold flex items-center justify-center space-x-2 transition-all"
+                  onClick={onSendToCompile}
+                  className="w-full sm:w-auto order-2 sm:order-1 text-xs text-slate-400 hover:text-white px-3 py-2.5 transition-colors flex items-center justify-center gap-1.5"
                 >
-                  <Activity className="w-4 h-4 text-amber-400" />
-                  <span>Run 100-Candle Backtest</span>
-                  <ArrowRight className="w-3.5 h-3.5" />
+                  <Code className="w-3.5 h-3.5" />
+                  <span>Skip to the file</span>
                 </button>
 
                 <button
-                  onClick={onSendToCompile}
-                  className="w-full sm:w-auto bg-gradient-to-r from-cyan-600 to-indigo-600 hover:from-cyan-500 hover:to-indigo-500 text-white px-6 py-2.5 rounded-xl text-xs font-bold flex items-center justify-center space-x-2 shadow-lg shadow-cyan-600/20 transition-all"
+                  onClick={onSendToBacktest}
+                  className="w-full sm:w-auto order-1 sm:order-2 bg-gradient-to-r from-cyan-600 to-indigo-600 hover:from-cyan-500 hover:to-indigo-500 text-white px-6 py-2.5 rounded-xl text-xs font-bold flex items-center justify-center space-x-2 shadow-lg shadow-cyan-600/20 transition-all"
                 >
-                  <Code className="w-4 h-4" />
-                  <span>Compile to MQL5 & EX5</span>
+                  <Activity className="w-4 h-4" />
+                  <span>Test it on past prices</span>
                   <ArrowRight className="w-3.5 h-3.5" />
                 </button>
               </div>

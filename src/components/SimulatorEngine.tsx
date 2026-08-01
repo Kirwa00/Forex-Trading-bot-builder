@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { Activity, Play, TrendingUp, TrendingDown, DollarSign, RefreshCw, BarChart2, ShieldAlert } from 'lucide-react';
+import { Activity, Play, TrendingUp, TrendingDown, DollarSign, RefreshCw, BarChart2, ShieldAlert, ArrowRight } from 'lucide-react';
 import { StrategyBlueprint, Candle, BacktestSummary } from '../types';
 import { HISTORICAL_CANDLES } from '../data/initialData';
 import { runBacktestSimulation } from '../utils/backtestEngine';
@@ -7,9 +7,10 @@ import { runBacktestSimulation } from '../utils/backtestEngine';
 interface SimulatorEngineProps {
   blueprint: StrategyBlueprint;
   currency: 'KES' | 'USD';
+  onContinue: () => void;
 }
 
-export const SimulatorEngine = ({ blueprint, currency }: SimulatorEngineProps) => {
+export const SimulatorEngine = ({ blueprint, currency, onContinue }: SimulatorEngineProps) => {
   const [isSimulating, setIsSimulating] = useState<boolean>(false);
   const [simulationProgress, setSimulationProgress] = useState<number>(100);
   const [customCandles] = useState<Candle[]>(HISTORICAL_CANDLES);
@@ -44,40 +45,62 @@ export const SimulatorEngine = ({ blueprint, currency }: SimulatorEngineProps) =
     return 280 - ((price - minPrice) / priceRange) * 240;
   };
 
+  // The headline answer: did this make or lose money, and how much.
+  const madeMoney = summary.netPnlUSD >= 0;
+  const magnitude =
+    currency === 'KES'
+      ? `KSh ${Math.abs(summary.netPnlKES).toLocaleString()}`
+      : `$${Math.abs(summary.netPnlUSD).toLocaleString()}`;
+  const formattedPnl = magnitude;
+  const startingBalance = currency === 'KES' ? 'KSh 130,000' : '$1,000';
+
   return (
     <div className="space-y-6 py-4">
-      {/* Banner & Control Header */}
-      <div className="bg-gradient-to-r from-slate-900 via-slate-900 to-amber-950/60 border border-slate-800 rounded-2xl p-6 shadow-xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-        <div>
-          <div className="inline-flex items-center space-x-2 bg-amber-950/80 border border-amber-800 px-3 py-1 rounded-full text-xs text-amber-300 font-mono mb-2">
-            <Activity className="w-3.5 h-3.5 text-amber-400" />
-            <span>Phase 3 Engine — 100 Candle Historical Backtester</span>
+      {/* The answer, in money, before any ratios */}
+      <div
+        className={`border rounded-2xl p-6 shadow-xl ${
+          madeMoney
+            ? 'bg-gradient-to-r from-emerald-950/60 via-slate-900 to-slate-900 border-emerald-800/60'
+            : 'bg-gradient-to-r from-rose-950/50 via-slate-900 to-slate-900 border-rose-900/60'
+        }`}
+      >
+        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-5">
+          <div className="space-y-2">
+            <span className="text-[11px] uppercase tracking-wider text-slate-400 font-mono block">
+              Tested on past prices
+            </span>
+            <p className="text-xl sm:text-2xl font-bold text-white leading-snug text-balance max-w-2xl">
+              Over the last {customCandles.length} candles on {blueprint.symbol}{' '}
+              {blueprint.timeframe}, this strategy would have{' '}
+              <span className={madeMoney ? 'text-emerald-400' : 'text-rose-400'}>
+                {madeMoney ? 'made' : 'lost'} {formattedPnl}
+              </span>{' '}
+              across {summary.totalTrades} {summary.totalTrades === 1 ? 'trade' : 'trades'}.
+            </p>
+            <p className="text-xs text-slate-400 max-w-xl leading-relaxed">
+              Starting from {startingBalance}. Past results don't predict future returns — this
+              shows how the rules behaved on historical data, not what the market will do next.
+            </p>
           </div>
-          <h1 className="text-2xl font-extrabold text-white tracking-tight">
-            Strategy Backtest Chart & P&L Simulator
-          </h1>
-          <p className="text-sm text-slate-300 mt-1">
-            Simulating <strong className="text-cyan-300">{blueprint.title}</strong> on {blueprint.symbol} ({blueprint.timeframe}). Buy/Sell signal arrows overlaid on price candles.
-          </p>
-        </div>
 
-        <button
-          onClick={handleRunSimulation}
-          disabled={isSimulating}
-          className="bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white font-bold px-6 py-3 rounded-xl text-xs flex items-center space-x-2 shadow-lg shadow-orange-500/20 transition-all shrink-0"
-        >
-          {isSimulating ? (
-            <>
-              <RefreshCw className="w-4 h-4 animate-spin" />
-              <span>Running Backtest... ({simulationProgress}%)</span>
-            </>
-          ) : (
-            <>
-              <Play className="w-4 h-4 fill-current" />
-              <span>Run 100-Candle Backtest</span>
-            </>
-          )}
-        </button>
+          <button
+            onClick={handleRunSimulation}
+            disabled={isSimulating}
+            className="w-full md:w-auto bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 font-bold px-5 py-2.5 rounded-xl text-xs flex items-center justify-center space-x-2 transition-all shrink-0"
+          >
+            {isSimulating ? (
+              <>
+                <RefreshCw className="w-4 h-4 animate-spin" />
+                <span>Running… ({simulationProgress}%)</span>
+              </>
+            ) : (
+              <>
+                <Play className="w-4 h-4 fill-current" />
+                <span>Run again</span>
+              </>
+            )}
+          </button>
+        </div>
       </div>
 
       {/* Backtest Progress Bar */}
@@ -112,7 +135,7 @@ export const SimulatorEngine = ({ blueprint, currency }: SimulatorEngineProps) =
               </span>
             )}
           </div>
-          <span className="text-[10px] text-slate-500 block">Initial Equity: $1,000</span>
+          <span className="text-[10px] text-slate-500 block">Starting balance: {startingBalance}</span>
         </div>
 
         {/* Win Rate */}
@@ -319,6 +342,21 @@ export const SimulatorEngine = ({ blueprint, currency }: SimulatorEngineProps) =
             </table>
           </div>
         </div>
+      </div>
+
+      {/* Next step */}
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-slate-900 border border-slate-800 rounded-2xl p-5">
+        <p className="text-xs text-slate-400 text-center sm:text-left max-w-md leading-relaxed">
+          Happy with how it behaves? The next step turns this into a file you can install in
+          MetaTrader 5.
+        </p>
+        <button
+          onClick={onContinue}
+          className="w-full sm:w-auto bg-gradient-to-r from-cyan-600 to-indigo-600 hover:from-cyan-500 hover:to-indigo-500 text-white px-6 py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-2 shadow-lg shadow-cyan-600/20 transition-all shrink-0"
+        >
+          <span>Get my bot</span>
+          <ArrowRight className="w-3.5 h-3.5" />
+        </button>
       </div>
     </div>
   );

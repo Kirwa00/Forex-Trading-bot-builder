@@ -1,6 +1,7 @@
 import React from 'react';
-import { Cpu, ShieldCheck, Zap, DollarSign, Activity, PlayCircle, Code2, Layers, Award } from 'lucide-react';
+import { ShieldCheck, Zap, PlayCircle } from 'lucide-react';
 import { UserSubscription } from '../types';
+import { STEPS, StepId } from '../steps';
 
 interface HeaderProps {
   activeTab: string;
@@ -8,195 +9,135 @@ interface HeaderProps {
   currency: 'KES' | 'USD';
   setCurrency: (c: 'KES' | 'USD') => void;
   subscription: UserSubscription;
-  onOpenPaymentModal: () => void;
+  furthestStep: number;
 }
 
+/**
+ * The nav presents the four steps as a numbered path rather than a menu — the
+ * work is sequential and the old sibling-tab layout hid that. Admin and the
+ * SDLC roadmap are operator surfaces and live behind /?view=admin.
+ */
 export const Header: React.FC<HeaderProps> = ({
   activeTab,
   setActiveTab,
   currency,
   setCurrency,
   subscription,
-  onOpenPaymentModal,
+  furthestStep,
 }) => {
+  const activeIndex = STEPS.findIndex((s) => s.id === activeTab);
+
   return (
     <header className="bg-slate-900 border-b border-slate-800 text-slate-100 sticky top-0 z-40 shadow-xl">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16">
-          {/* Logo & Subtitle */}
-          <div className="flex items-center space-x-3 cursor-pointer" onClick={() => setActiveTab('builder')}>
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-cyan-500 via-blue-600 to-indigo-600 flex items-center justify-center shadow-lg shadow-cyan-500/20">
-              <Zap className="w-6 h-6 text-white animate-pulse" />
+        <div className="flex items-center justify-between h-16 gap-4">
+          {/* Logo */}
+          <button
+            className="flex items-center space-x-3 shrink-0"
+            onClick={() => setActiveTab('describe')}
+          >
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-cyan-500 via-blue-600 to-indigo-600 flex items-center justify-center shadow-lg shadow-cyan-500/20">
+              <Zap className="w-5 h-5 text-white" />
             </div>
-            <div>
-              <div className="flex items-center space-x-2">
-                <span className="font-bold text-xl tracking-tight text-white font-mono">StratoBot<span className="text-cyan-400">.AI</span></span>
-                <span className="text-[10px] font-semibold bg-cyan-950 text-cyan-300 border border-cyan-800 px-2 py-0.5 rounded-full uppercase tracking-wider">v1.0 MVP</span>
-              </div>
-              <p className="text-xs text-slate-400 hidden sm:block">AI-Powered MT5 Expert Advisor Generator & AST Compiler</p>
+            <div className="text-left">
+              <span className="font-bold text-lg tracking-tight text-white font-mono block leading-none">
+                StratoBot<span className="text-cyan-400">.AI</span>
+              </span>
+              <p className="text-[11px] text-slate-400 hidden lg:block mt-0.5">
+                Trading strategies into MetaTrader 5 robots
+              </p>
             </div>
-          </div>
+          </button>
 
-          {/* Navigation Links */}
-          <nav className="hidden md:flex items-center space-x-1">
-            <button
-              onClick={() => setActiveTab('builder')}
-              className={`px-3 py-2 rounded-lg text-xs font-medium transition-all flex items-center space-x-1.5 ${
-                activeTab === 'builder'
-                  ? 'bg-cyan-500/10 text-cyan-400 border border-cyan-500/30'
-                  : 'text-slate-300 hover:text-white hover:bg-slate-800'
-              }`}
-            >
-              <Layers className="w-4 h-4" />
-              <span>Lego Builder</span>
-            </button>
+          {/* Step path */}
+          <nav className="hidden md:flex items-center flex-1 justify-center" aria-label="Progress">
+            {STEPS.map((step, index) => {
+              const isActive = activeTab === step.id;
+              const isReached = index <= furthestStep;
+              const isDone = index < activeIndex;
 
-            <button
-              onClick={() => setActiveTab('video-hub')}
-              className={`px-3 py-2 rounded-lg text-xs font-medium transition-all flex items-center space-x-1.5 ${
-                activeTab === 'video-hub'
-                  ? 'bg-cyan-500/10 text-cyan-400 border border-cyan-500/30'
-                  : 'text-slate-300 hover:text-white hover:bg-slate-800'
-              }`}
-            >
-              <PlayCircle className="w-4 h-4 text-emerald-400" />
-              <span>Video Hub</span>
-              <span className="ml-1 px-1.5 py-0.2 text-[9px] bg-emerald-900/60 text-emerald-300 rounded-full font-mono">1-Click</span>
-            </button>
-
-            <button
-              onClick={() => setActiveTab('simulator')}
-              className={`px-3 py-2 rounded-lg text-xs font-medium transition-all flex items-center space-x-1.5 ${
-                activeTab === 'simulator'
-                  ? 'bg-cyan-500/10 text-cyan-400 border border-cyan-500/30'
-                  : 'text-slate-300 hover:text-white hover:bg-slate-800'
-              }`}
-            >
-              <Activity className="w-4 h-4 text-amber-400" />
-              <span>Backtest Chart</span>
-            </button>
-
-            <button
-              onClick={() => setActiveTab('compiler')}
-              className={`px-3 py-2 rounded-lg text-xs font-medium transition-all flex items-center space-x-1.5 ${
-                activeTab === 'compiler'
-                  ? 'bg-cyan-500/10 text-cyan-400 border border-cyan-500/30'
-                  : 'text-slate-300 hover:text-white hover:bg-slate-800'
-              }`}
-            >
-              <Code2 className="w-4 h-4 text-indigo-400" />
-              <span>MQL5 & Compiler</span>
-            </button>
-
-            <button
-              onClick={() => setActiveTab('sdlc')}
-              className={`px-3 py-2 rounded-lg text-xs font-medium transition-all flex items-center space-x-1.5 ${
-                activeTab === 'sdlc'
-                  ? 'bg-cyan-500/10 text-cyan-400 border border-cyan-500/30'
-                  : 'text-slate-300 hover:text-white hover:bg-slate-800'
-              }`}
-            >
-              <Cpu className="w-4 h-4 text-purple-400" />
-              <span>SDLC Specs</span>
-            </button>
-
-            <button
-              onClick={() => setActiveTab('admin')}
-              className={`px-3 py-2 rounded-lg text-xs font-medium transition-all flex items-center space-x-1.5 ${
-                activeTab === 'admin'
-                  ? 'bg-cyan-500/10 text-cyan-400 border border-cyan-500/30'
-                  : 'text-slate-300 hover:text-white hover:bg-slate-800'
-              }`}
-            >
-              <Award className="w-4 h-4 text-rose-400" />
-              <span>Admin Panel</span>
-            </button>
+              return (
+                <React.Fragment key={step.id}>
+                  {index > 0 && (
+                    <span
+                      aria-hidden="true"
+                      className={`h-px w-5 lg:w-8 mx-1 ${
+                        index <= furthestStep ? 'bg-cyan-700' : 'bg-slate-800'
+                      }`}
+                    />
+                  )}
+                  <button
+                    onClick={() => isReached && setActiveTab(step.id)}
+                    disabled={!isReached}
+                    aria-current={isActive ? 'step' : undefined}
+                    title={isReached ? step.blurb : `Finish step ${index} first`}
+                    className={`px-2.5 lg:px-3 py-1.5 rounded-lg text-xs font-medium transition-all flex items-center gap-2 ${
+                      isActive
+                        ? 'bg-cyan-500/10 text-cyan-300 border border-cyan-500/40'
+                        : isReached
+                          ? 'text-slate-300 hover:text-white hover:bg-slate-800 border border-transparent'
+                          : 'text-slate-600 cursor-not-allowed border border-transparent'
+                    }`}
+                  >
+                    <span
+                      className={`w-5 h-5 rounded-full text-[10px] font-mono font-bold flex items-center justify-center shrink-0 ${
+                        isActive
+                          ? 'bg-cyan-500 text-slate-950'
+                          : isDone
+                            ? 'bg-cyan-900 text-cyan-300'
+                            : isReached
+                              ? 'bg-slate-800 text-slate-400'
+                              : 'bg-slate-900 text-slate-700 border border-slate-800'
+                      }`}
+                    >
+                      {index + 1}
+                    </span>
+                    <span className="whitespace-nowrap">{step.label}</span>
+                  </button>
+                </React.Fragment>
+              );
+            })}
           </nav>
 
-          {/* Right Action Controls: Currency & Subscription Badge */}
-          <div className="flex items-center space-x-3">
-            {/* Currency Toggle */}
-            <div className="bg-slate-800/80 border border-slate-700 p-0.5 rounded-lg flex items-center text-xs font-mono">
-              <button
-                onClick={() => setCurrency('KES')}
-                className={`px-2 py-1 rounded-md transition-colors ${
-                  currency === 'KES' ? 'bg-cyan-600 text-white font-bold' : 'text-slate-400 hover:text-white'
-                }`}
-              >
-                KES (KSh)
-              </button>
-              <button
-                onClick={() => setCurrency('USD')}
-                className={`px-2 py-1 rounded-md transition-colors ${
-                  currency === 'USD' ? 'bg-cyan-600 text-white font-bold' : 'text-slate-400 hover:text-white'
-                }`}
-              >
-                USD ($)
-              </button>
+          {/* Right controls */}
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              onClick={() => setActiveTab('examples')}
+              className={`hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs transition-colors ${
+                activeTab === 'examples'
+                  ? 'bg-emerald-500/10 text-emerald-300 border border-emerald-500/40'
+                  : 'text-slate-400 hover:text-white hover:bg-slate-800 border border-transparent'
+              }`}
+            >
+              <PlayCircle className="w-4 h-4" />
+              <span>Examples</span>
+            </button>
+
+            <div className="bg-slate-800/80 border border-slate-700 p-0.5 rounded-lg flex items-center text-[11px] font-mono">
+              {(['KES', 'USD'] as const).map((c) => (
+                <button
+                  key={c}
+                  onClick={() => setCurrency(c)}
+                  className={`px-2 py-1 rounded-md transition-colors ${
+                    currency === c ? 'bg-cyan-600 text-white font-bold' : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  {c}
+                </button>
+              ))}
             </div>
 
-            {/* Subscription Tier Button */}
-            {subscription.tier === 'Pro' ? (
-              <div className="bg-gradient-to-r from-emerald-950 to-teal-900 border border-emerald-500/40 text-emerald-300 px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center space-x-1.5 shadow-sm">
-                <ShieldCheck className="w-4 h-4 text-emerald-400" />
-                <span>Pro Tier (Unlimited)</span>
+            {subscription.tier === 'Pro' && (
+              <div className="bg-emerald-950 border border-emerald-500/40 text-emerald-300 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold flex items-center gap-1.5">
+                <ShieldCheck className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Pro</span>
               </div>
-            ) : (
-              <button
-                onClick={onOpenPaymentModal}
-                className="bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white font-bold px-3 py-1.5 rounded-lg text-xs flex items-center space-x-1.5 shadow-md shadow-orange-500/20 transition-all transform hover:scale-105"
-              >
-                <DollarSign className="w-4 h-4" />
-                <span>Upgrade to Pro (2,500 KES)</span>
-              </button>
             )}
           </div>
-        </div>
-
-        {/* Mobile Navigation Row */}
-        <div className="md:hidden flex overflow-x-auto py-2 border-t border-slate-800 space-x-2 text-xs no-scrollbar">
-          <button
-            onClick={() => setActiveTab('builder')}
-            className={`px-3 py-1.5 rounded-md whitespace-nowrap ${
-              activeTab === 'builder' ? 'bg-cyan-600 text-white' : 'text-slate-300 bg-slate-800'
-            }`}
-          >
-            Lego Builder
-          </button>
-          <button
-            onClick={() => setActiveTab('video-hub')}
-            className={`px-3 py-1.5 rounded-md whitespace-nowrap ${
-              activeTab === 'video-hub' ? 'bg-cyan-600 text-white' : 'text-slate-300 bg-slate-800'
-            }`}
-          >
-            Video Hub
-          </button>
-          <button
-            onClick={() => setActiveTab('simulator')}
-            className={`px-3 py-1.5 rounded-md whitespace-nowrap ${
-              activeTab === 'simulator' ? 'bg-cyan-600 text-white' : 'text-slate-300 bg-slate-800'
-            }`}
-          >
-            Backtest Chart
-          </button>
-          <button
-            onClick={() => setActiveTab('compiler')}
-            className={`px-3 py-3 rounded-md whitespace-nowrap ${
-              activeTab === 'compiler' ? 'bg-cyan-600 text-white' : 'text-slate-300 bg-slate-800'
-            }`}
-          >
-            MQL5 & Compiler
-          </button>
-          <button
-            onClick={() => setActiveTab('sdlc')}
-            className={`px-3 py-1.5 rounded-md whitespace-nowrap ${
-              activeTab === 'sdlc' ? 'bg-cyan-600 text-white' : 'text-slate-300 bg-slate-800'
-            }`}
-          >
-            SDLC Roadmap
-          </button>
         </div>
       </div>
     </header>
   );
 };
+
+export type { StepId };

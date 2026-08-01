@@ -1,14 +1,15 @@
 {
-  "name": "react-example",
+  "name": "stratobot-ai",
   "private": true,
   "version": "0.0.0",
   "type": "module",
   "scripts": {
     "dev": "tsx server.ts",
-    "build": "vite build && esbuild server.ts --bundle --platform=node --format=cjs --packages=external --sourcemap --outfile=dist/server.cjs",
-    "start": "node dist/server.cjs",
-    "clean": "rm -rf dist server.cjs",
-    "lint": "tsc --noEmit"
+    "build": "vite build && esbuild server.ts --bundle --platform=node --format=cjs --packages=external --sourcemap --outfile=build/server.cjs",
+    "start": "node build/server.cjs",
+    "clean": "rm -rf dist build",
+    "lint": "tsc --noEmit",
+    "register-ipn": "tsx scripts/register-ipn.ts"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",
